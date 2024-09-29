@@ -7,6 +7,7 @@ import chat_exporter
 import io
 import json
 from nextcord.ext import application_checks
+from translate import Translator
 
 
 class ClientSettings(commands.Bot):
@@ -275,5 +276,73 @@ async def setup(interaction: nextcord.Interaction):
         color=nextcord.Colour(0x0f0f0f)
     )
     await interaction.response.send_message(embed=embed, view=CreateTicket(client))
+
+
+# Expanded morse code library
+morse_code_library = {
+    'A': '.-',     'B': '-...',   'C': '-.-.', 'D': '-..', 'E': '.',
+    'F': '..-.',   'G': '--.',    'H': '....', 'I': '..',   'J': '.---',
+    'K': '-.-',    'L': '.-..',   'M': '--',   'N': '-.',   'O': '---',
+    'P': '.--.',   'Q': '--.-',  'R': '.-.',   'S': '...',  'T': '-',
+    'U': '..-',    'V': '...-',   'W': '.--',   'X': '-..-',  'Y': '-.--',
+    'Z': '--..',   '1': '.----', '2': '..---', '3': '...--', '4': '....-',
+    '5': '.....',  '6': '-....', '7': '--...', '8': '---..', '9': '----.',
+    '0': '-----',  ' ': '/',     ',': '--..--', '.': '.-.-.-', '?': '..--..',
+    '!': '-.-.--', '/': '-..-.', '-': '-....-', '(': '-.--.', ')': '-.--.-',
+    '&': '.-...',  ':': '---...', ';': '-.-.-.', '=': '-...-', '+': '.-.-.',
+    '_': '..--.',  '"': '.-..-.', '$': '...-..', '@': '.--.-.', '#': '-.-.-.',
+    '%': '---...', '^': '.-.--.', '~': '...-',   '<': '.--.-.', '>': '.--.--'
+}
+
+def text_to_morse(text):
+    morse_output = ""
+    for char in text.upper():
+        if char in morse_code_library:
+            morse_output += morse_code_library[char] + " "
+    return morse_output.strip()
+
+def morse_to_text(morse_code):
+    reverse_library = {value: key for key, value in morse_code_library.items()}
+    words = morse_code.split("  ")
+    output = ""
+    for word in words:
+        letters = word.split()
+        for letter in letters:
+            if letter != "/":
+                output += reverse_library[letter]
+        output += " "
+    return output.strip()
+    
+def translate_text(text, target_language):
+    try:
+        translator = Translator(to_lang=target_language)
+        return translator.translate(text)
+    except Exception as e:
+        return f"Translation failed: {str(e)}"
+
+@client.event
+async def on_ready():
+    print(f'{client.user} has connected to Discord!')
+
+@client.slash_command(name='texttomorse', description='Convert text to morse code')
+async def text_to_morse_command(interaction: nextcord.Interaction, text: str):
+    morse_output = text_to_morse(text)
+    await interaction.response.send_message(f'Morse Code: {morse_output}')
+
+@client.slash_command(name='morsetotext', description='Convert morse code to text')
+async def morse_to_text_command(interaction: nextcord.Interaction, morse_code: str):
+    text_output = morse_to_text(morse_code)
+    await interaction.response.send_message(f'Text: {text_output}')
+
+@client.slash_command(name='translate', description='Translate text to another language')
+async def translate_command(interaction: nextcord.Interaction, text: str, target_language: str):
+    await interaction.response.defer()
+    
+    try:
+        translated_text = translate_text(text, target_language)
+        await interaction.followup.send(f"Translated: `{translated_text}`")
+    except Exception as e:
+        await interaction.followup.send(f"Translation failed: {str(e)}", ephemeral=True)
+
 
 client.run(token)
